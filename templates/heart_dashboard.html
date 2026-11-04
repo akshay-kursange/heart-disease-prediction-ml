@@ -1,0 +1,122 @@
+{% macro metric_card(label, value, tone='default') %}
+  <article class="hd-metric hd-metric-{{ tone }}">
+    <span>{{ label }}</span>
+    <strong>{{ value }}</strong>
+  </article>
+{% endmacro %}
+
+{% macro select_field(label, name, options, selected) %}
+  <label class="hd-field">
+    <span>{{ label }}</span>
+    <select name="{{ name }}" id="hd-{{ name }}" required>
+      {% for value, text in options %}
+        <option value="{{ value }}" {% if selected|string == value|string %}selected{% endif %}>{{ text }}</option>
+      {% endfor %}
+    </select>
+  </label>
+{% endmacro %}
+
+{% macro number_field(label, name, value, min, max, step='1') %}
+  <label class="hd-field">
+    <span>{{ label }}</span>
+    <input name="{{ name }}" id="hd-{{ name }}" type="number" min="{{ min }}" max="{{ max }}" step="{{ step }}" value="{{ value }}" required />
+  </label>
+{% endmacro %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Heart Failure Prediction Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='heart_dashboard.css') }}" />
+</head>
+<body>
+  <main class="hd-shell">
+    <header class="hd-header">
+      <div>
+        <p>Heart disease failure data Dashboard</p>
+        <h1>Heart Failure Prediction Model</h1>
+      </div>
+      <span class="hd-status">Model Ready</span>
+    </header>
+
+    <section class="hd-metrics" aria-label="Dashboard metrics">
+      {{ metric_card('Train/Test Split', stats.split) }}
+      {{ metric_card('Training Accuracy', "%.2f%%"|format(stats.training_accuracy or 0), 'green') }}
+      {{ metric_card('Testing Accuracy', "%.2f%%"|format(stats.testing_accuracy or 0), 'blue') }}
+      {{ metric_card('Total Records', stats.records, 'orange') }}
+      {{ metric_card('Train Count', stats.train_records, 'orange') }}
+      {{ metric_card('Test Count', stats.test_records, 'orange') }}
+    </section>
+
+    <section class="hd-grid">
+      <section class="hd-card hd-form-card">
+        <div class="hd-card-head">
+          <div>
+            <span>Prediction Form</span>
+            <h2>Patient Clinical Inputs</h2>
+          </div>
+          <button class="hd-ghost" type="button" id="hd-sample-btn">Sample Row</button>
+        </div>
+
+        <form class="hd-form" id="heart-dashboard-form">
+          <input type="hidden" name="ca" id="hd-ca" value="0" />
+          <input type="hidden" name="thal" id="hd-thal" value="3" />
+
+          {{ select_field('Sex', 'sex', [(0, 'Female'), (1, 'Male')], 0) }}
+          {{ select_field('Resting ECG', 'restecg', [(0, 'Normal'), (1, 'ST-T'), (2, 'LVH')], 2) }}
+          {{ select_field('Chest Pain Type', 'cp', [(0, 'TA'), (1, 'ATA'), (2, 'NAP'), (3, 'ASY')], 0) }}
+          {{ select_field('Exercise Angina', 'exang', [(0, 'No'), (1, 'Yes')], 0) }}
+          {{ select_field('ST Slope', 'slope', [(2, 'Up'), (1, 'Flat'), (0, 'Down')], 2) }}
+          {{ number_field('Age', 'age', 50, 1, 120) }}
+          {{ number_field('Resting BP', 'trestbps', 100, 80, 220) }}
+          {{ number_field('Cholesterol', 'chol', 180, 80, 650) }}
+          {{ select_field('Fasting Blood Sugar', 'fbs', [(0, 'less than 120 mg/dl'), (1, 'greater than 120 mg/dl')], 0) }}
+          {{ number_field('Max Heart Rate', 'thalach', 140, 60, 220) }}
+          {{ number_field('Old Peak', 'oldpeak', 2.5, 0, 10, '0.1') }}
+
+          <button class="hd-predict" type="submit">
+            <span class="hd-btn-text">PREDICT</span>
+            <span class="hd-loader" aria-hidden="true"></span>
+          </button>
+        </form>
+
+        <div class="hd-result" id="hd-result" aria-live="polite">
+          <span>Prediction Result</span>
+          <strong id="hd-result-text">Waiting</strong>
+          <p>Probability: <b id="hd-probability">--</b></p>
+        </div>
+      </section>
+
+      <aside class="hd-card hd-chart-card">
+        <div class="hd-card-head">
+          <div>
+            <span>Model Insights</span>
+            <h2>Each feature effect on final result</h2>
+          </div>
+        </div>
+        <div class="hd-chart" id="hd-chart">
+          {% for item in feature_importance %}
+            <div class="hd-bar-row">
+              <span>{{ item.label }}</span>
+              <div class="hd-bar-track">
+                <div class="hd-bar-fill" style="width: {{ item.percent }}%"></div>
+              </div>
+              <em>{{ "%.3f"|format(item.value) }}</em>
+            </div>
+          {% endfor %}
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <script>
+    window.heartDashboardRows = {{ sample_rows | tojson }};
+  </script>
+  <script src="{{ url_for('static', filename='heart_dashboard.js') }}"></script>
+</body>
+</html>
